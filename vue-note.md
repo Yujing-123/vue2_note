@@ -2540,7 +2540,7 @@ v-model绑定的是一个数组。
 组件自己的数据存放在哪里呢?
 1.组件内部是不能访问vue实例里面的data数据的。
 2.组件对象也有一个data属性(也可以有methods等属性，下面我们有用到)
-只是这个data属性必须是一个函数
+只是这个data属性必须是一个函数，写成对象的话，会报错
 而且这个函数返回一个对象，对象内部保存着数据
    -->
 
@@ -2570,17 +2570,40 @@ v-model绑定的是一个数组。
 
 ![alt](img/04-组件化开发/幻灯片13.jpg)
 
+## 4.8 组件中的data为什么必须是一个函数
+
 ![alt](img/04-组件化开发/幻灯片14.jpg)
 
 ```html
 
 <body>
   <div id="app">
+     <!-- 组件实例  -->
     <cpn></cpn>
-    <!-- 创建出了3个组件实例，公用的不是一个data对象，因为data是一个函数，组件实例每次
-    被创建的时候，都会调用这个函数，函数每次创建的时候，都是不一样的内存地址
+    <!-- 创建出了3个组件实例，公用的不是一个data对象，应该是每个组件实例各自的data；
+因为data是一个函数，组件实例每次被创建的时候，都会调用这个data函数，每次调用的时候都会return一个新的对象
+（函数每次创建的时候，返回的都是不一样的内存地址）
+这样每个组件实例都有自己的data对象。
+
+
+  <script>
+    function abc(){
+      return {
+        name:'why',
+        age:18
+      }
+    }
+    let obj1 = abc(); //这三个对象的内存地址是不一样的
+    let obj2 = abc();
+    let obj3 = abc();
+    console.log(abc() === abc());//false
+    console.log(obj1 === obj3);//false
+  </script>
+
     -->
+       <!-- 组件实例  -->
     <cpn></cpn>
+       <!-- 组件实例  -->
     <cpn></cpn>
   </div>
   <template id="cpn">
@@ -2591,9 +2614,7 @@ v-model绑定的是一个数组。
     </div>
   </template>
   
-
   <script>
-
     //1.注册一个全局组件
     Vue.component('cpn',
     {
@@ -2625,7 +2646,46 @@ v-model绑定的是一个数组。
 
 ```
 
-## 4.8 父子组件的通信
+如果就想让各个组件实例的counter使用同一个data
+
+```js
+  <script>
+    //如果就想让这三个组件实例使用同一个counter
+  const obj = {
+    counter: 0
+  }
+
+    //1.注册一个全局组件
+    Vue.component('cpn',
+    {
+      template: '#cpn',
+      data(){
+        return obj
+      },
+      methods: {
+        add(){
+          this.counter++
+        },
+        sub(){
+          this.counter--
+        }
+      }
+    }
+    )
+    var app = new Vue({
+      el: '#app',
+      data: {
+        message: '你好啊'
+      },
+      methods: {}
+    });
+  </script>
+
+```
+
+
+
+## 4.9 父子组件的通信
 
 ![alt](img/04-组件化开发/幻灯片15.jpg)
 
@@ -2633,31 +2693,633 @@ v-model绑定的是一个数组。
 
 ![alt](img/04-组件化开发/幻灯片17.jpg)
 
+```html
+
+<body>
+  <div id="app">
+    <!-- <cpn v-bind:cmovies="movies" :cmessage="message"></cpn> -->
+    <!-- <cpn v-bind:cmovies="movies" ></cpn> -->
+     <!-- 这个样子的话就是显示cmessage的默认值，
+    但是如果给cmessage设置required的话，如果没有传message，就会报错-->
+    <cpn :cmessage="message"></cpn>
+  </div>
+
+  <template id="cpn">
+    <div>
+      <p v-for="item in cmovies">{{item}}</p>
+      <h2>{{cmessage}}</h2> 
+    </div>
+  </template>
+
+  <script>
+    const cpn = {
+      template: '#cpn',
+      //props: ['cmovies','cmessage'],
+      /* 
+      props的值有两种方式：
+      方式一：字符串数组，数组中的字符串就是传递时的名称。(用起来很别扭，明明是变量，却需要用小括号，看起来像是字符串)
+      方式二：对象，对象可以设置传递时的类型，也可以设置默认值等。
+      */
+     props:{
+       //1.类型限制
+       //cmovies: Array,
+       //cmessage: String,
+
+       //2.提供默认值
+       cmessage: {
+         type: String,
+         default: 'aaaaaaa',
+         required: true//这个cmessage必须得传，不传不能使用
+       },
+       cmovies: {
+         type: Array,
+         //default: []//vue2.5.3一下不会报错，但是现在的话，类型是对象或者数组的时候，默认值必须是一个函数
+         default(){
+           return []
+         } 
+       }
+
+
+     },
+      data(){
+        return {
+
+        }
+      }
+
+    }
+   var app = new Vue({
+      el: '#app',
+      data: {
+        message: '你好啊',
+        movies: ['海王','海贼王','海尔兄弟']
+      },
+      methods: {},
+      components: {
+        cpn,//对象自变量增强写法 cpn : cpn
+      }
+     });
+
+
+     /* 
+     const name = 'why';
+     const obj = {
+       name: name;
+       //增强写法就是下面，直接写个name
+       name
+     }
+     */
+  </script>
+</body>
+```
+
+props中的驼峰标识
+
+```html
+
+<body>
+  <div id="app">
+    <cpn :cinfo='info'></cpn>
+  </div>
+  <template id="cpn">
+    <h2>{{cinfo}}</h2>
+  </template>
+  <script>
+    const cpn = {
+      template:'#cpn',
+      props: {//不支持驼峰命名，比如cInfo，可以使用c-info
+        cinfo: {
+          type: Object,
+          default(){
+            return {}
+          }
+        }
+      }
+    }
+   var app = new Vue({
+      el: '#app',
+      data: {
+        info: {
+          name: 'why',
+          age: 18,
+          height: 1.88
+        }
+      },
+      methods: {},
+      components:{
+        cpn
+      }
+     });
+  </script>
+</body>
+```
+
+
+
+## 4.10 子级向父级传递
+
 ![alt](img/04-组件化开发/幻灯片18.jpg)
 
 ![alt](img/04-组件化开发/幻灯片19.jpg)
+
+​	
+
+```html
+ <style>
+    button{
+      display: block;
+      margin: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 父组件模板 -->
+  <div id="app">
+    <cpn v-on:item-click="cpnClick"></cpn>
+  </div>
+
+  <!-- 子组件模板 -->
+  <template id="cpn">
+    <div>
+    <button v-for="item in categories" @click="btnClick(item)">
+      {{item.name}}
+    </button>
+    </div>
+  </template>
+  <script>
+    //1.子组件
+    const cpn = {
+      template: '#cpn',
+      data(){
+        return {
+          categories: [
+            { id: 'aaa', name: '热门推荐' },
+            { id: 'bbb', name: '手机数码' },
+            { id: 'ccc', name: '家用家电' },
+            { id: 'ddd', name: '电脑办公' }
+          ]
+        }
+      },
+      methods: {
+        btnClick(item){
+          //子组件发射事件
+          this.$emit('item-click',item)
+
+        }
+      }
+    }
+
+
+    //2 父子局
+    const app = new Vue({
+      el: '#app',
+      data: {
+        message: '你好啊'
+      },
+      methods: {
+        cpnClick(item){
+          console.log(item.name);
+        }
+      },
+      components: {
+        cpn
+      }
+    });
+  </script>
+```
+
+## 4.11 父子组件通讯案例
+
+```html
+<!-- 
+
+1. 把vue实例的num1和num2传给子组件的inputbox
+2.input里面的数字改变，vue实例里面的num1和num2也改变
+
+细节1：props里面的属性，一定要通过父组件进行修改，不能自己修改自己
+所以，input里面不能v-model=“pnumber1” 让inut的值绑定props里面
+的数据==》props就是父组件传进来啥值，它保存啥值
+细节2：解决方法就是，根据props里面的pnumber1,pnumber2来初始
+data里面的dmuber1和dnunber2,然后绑定到template的input的value里面
+
+ -->
+
+<body>
+  <div id="app">
+    <cpn :pnumber1="num1" 
+         :pnumber2="num2"
+         @num1change="num1change"
+         @num2change="num2change"
+         >
+    </cpn>
+  </div>
+
+  <template id="cpn">  
+    <div>
+      <h2>pnumber1：{{pnumber1}}</h2>
+      <h2>dnumber1：{{dnumber1}}</h2>
+      <!-- <input type="text" v-model='dnumber1'> -->
+      <input type="text" :value='dnumber1'@input="number1Input">
+      <br>
+      <h2>pnumber2：{{pnumber2}}</h2>
+      <h2>dnumber2：{{dnumber2}}</h2>
+      <!-- <input type="text" v-model='dnumber2'> -->
+      <input type="text" :value='dnumber2' @input="number2Input">
+    </div>
+  </template>
+
+  <script>
+   var app = new Vue({
+      el: '#app',
+      data: {
+        message: '你好啊',
+        num1: 10,
+        num2: 20
+      },
+      methods: {
+        num1change(value){
+          this.num1 = Number(value)
+        },
+        num2change(value){
+          this.num2 = Number(value)
+        }
+      },
+      components:{
+        cpn:{
+          template:'#cpn',
+          props:{
+            pnumber1:{
+              type: Number,
+            },
+            pnumber2:{
+              type: Number
+            }
+          },
+          data(){
+            return {
+              dnumber1: this.pnumber1,
+              dnumber2: this.pnumber2
+            }
+          },
+          methods:{
+            number1Input(event){
+              //1.将input中的value赋值到dnumber中
+              this.dnumber1=event.target.value;
+              //2.为了让父组件可以修改值，发出一个事件
+              this.$emit('num1change',this.dnumber1)
+              //3.同时修饰dnumber2的值
+              this.dnumber2 = this.dnumber1 * 100;
+              this.$emit('num2change',this.dnumber2);
+            },
+            number2Input(event){
+              this.dnumber2=event.target.value;
+              this.$emit('num2change',this.dnumber2);
+              //同时修饰dnumber2的值
+              this.dnumber1 = this.dnumber2 / 100;
+              this.$emit('num1change',this.dnumber1);
+            }
+          }
+
+        }
+      }
+     });
+  </script>
+</body>
+```
+
+## 4.12 父访问子
 
 ![alt](img/04-组件化开发/幻灯片20.jpg)
 
 ![alt](img/04-组件化开发/幻灯片21.jpg)
 
+```html
+
+<body>
+  <div id="app">
+    <cpn></cpn>
+    <cpn></cpn>
+    <cpn ref='aaa'></cpn>
+    <button @click="btnClick">按钮</button>
+  </div>
+  <template id="cpn">
+    <div>我是子组件</div>
+  </template>
+
+  <script>
+    var app = new Vue({
+      el: '#app',
+      data: {
+        message: '你好啊'
+      },
+      methods: {
+        btnClick() {
+          /* console.log(this.$children);
+          this.$children[0].showMessage(); 
+          console.log(this.$children[0].name);*/
+          for (let c of this.$children){
+            console.log(c.name);
+            c.showMessage();
+          }
+          /* 不用下标值去拿想要的children 而是通过$refs去拿*/
+          console.log(this.$refs);
+          //对象类型，默认是空对象。需要在使用的组件上写ref="aaa"
+          //就可以通过this.$refs.aaa获得这个组件
+          console.log(this.$refs.aaa);
+        }
+      },
+      components: {
+        cpn: {
+          template: '#cpn',
+          data(){
+            return {
+              name:'我是子组件的name'
+            }
+          },
+          methods:{
+            showMessage(){
+              console.log('showMessage');
+            }
+          }
+        }
+      },
+    
+
+
+    });
+  </script>
+</body>
+```
+
+## 4.13 子访问父
+
 ![alt](img/04-组件化开发/幻灯片22.jpg)
+
+```html
+<body>
+  <div id="app">
+    <cpn></cpn>
+  </div>
+  <template id="cpn">
+    <div>
+      <ccpn></ccpn>
+    </div>
+  </template>
+  <template id="ccpn">
+    <div>
+      <div>我是孙子组件</div>
+      <button @click='btnClick'>按钮</button>
+    </div>
+  </template>
+
+  <script>
+    var app = new Vue({
+      el: '#app',
+      data: {
+        message: '你好啊'
+      },
+      methods: {},
+      components: {
+        cpn: {
+          template: '#cpn',
+          data(){
+            return {
+              name: '我是cpn组件的name'
+            }
+          },
+          components: {
+            ccpn: {
+              template: '#ccpn',
+              methods: {
+                btnClick() {
+                  //1.访问父组件,而不是爷爷（Vue实例）
+                  console.log(this.$parent);
+                  console.log(this.$parent.name);
+                  //2.访问根组件$root
+                  console.log(this.$root);//vue实例
+                  console.log(this.$root.message);//vue实例
+                }
+              }
+            }
+          }
+        },
+
+      },
+
+
+    });
+  </script>
+</body>
+```
+
+
 
 ![alt](img/04-组件化开发/幻灯片23.jpg)
 
+## 4.14 slot-插槽的基本使用
+
 ![alt](img/04-组件化开发/幻灯片24.jpg)
 
+
+
+
+
 ![alt](img/04-组件化开发/幻灯片25.jpg)
+```html
+</head>
+<!-- 
+最好的封装方式就是将共性抽取到组件中，将不同暴露为插槽。
+一旦我们预留了插槽，就可以让使用者根据自己的需求，决定插槽中插入什么内容。
+是搜索框，还是文字，还是菜单。由调用者自己来决定。
+ -->
+
+ <!-- 
+1.插槽的基本使用，在template中定义slot标签
+2.插槽的默认值 往<slot><button>按钮</button></slot>中间放入默认值
+3.如果有多个值，同时放入到组件进行替换时，一起作为替换元素
+
+  -->
+<body>
+  <div id="app">
+    <cpn><button>按钮</button></cpn>
+    <cpn><span>哈哈哈</span></cpn>
+    <cpn><i>呵呵呵</i></cpn>
+    <cpn><button>按钮</button></cpn><!-- 有指定的就显示指定的 -->
+    <cpn></cpn><!-- 没指定，就显示插槽默认的button -->
+    <cpn></cpn>
+    <cpn>
+      <i>呵呵呵</i>
+      <span>哈哈哈</span>
+      <p>我是p元素</p>
+    </cpn><!-- 多个标签的情况下，所有替换到slot -->
+  
+  </div>
+  <template id="cpn">
+    <div>
+      <h2>我是组件的h2</h2>
+      <p>我是组件的p</p>
+      <slot><button>按钮</button></slot>
+    </div>
+  </template>
+
+  <script>
+   var app = new Vue({
+      el: '#app',
+      data: {
+        message: '你好啊'
+      },
+      methods: {},
+      components:{
+        cpn:{
+          template:'#cpn'
+        }
+      }
+     });
+  </script>
+</body>
+```
 
 ![alt](img/04-组件化开发/幻灯片26.jpg)
 
+## 4.15 slot-具名插槽的基本使用
 ![alt](img/04-组件化开发/幻灯片27.jpg)
 
+```html
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <script src="./resource/js/vue.js"></script>
+</head>
+<!-- 
+最好的封装方式就是将共性抽取到组件中，将不同暴露为插槽。
+一旦我们预留了插槽，就可以让使用者根据自己的需求，决定插槽中插入什么内容。
+是搜索框，还是文字，还是菜单。由调用者自己来决定。
+ -->
+
+<!-- 
+1.插槽的基本使用，在template中定义slot标签
+2.插槽的默认值 往<slot><button>按钮</button></slot>中间放入默认值
+3.如果有多个值，同时放入到组件进行替换时，一起作为替换元素
+
+  -->
+
+<body>
+  <div id="app">
+    <cpn> <span slot="center">标题中心</span> </cpn><!-- 只替换center的插槽，其他就使用slot的默认值 -->
+    <cpn> <span slot="left">标题左边</span> </cpn>
+    <cpn> <span slot="right">标题右边</span> </cpn>
+    <cpn><span>我没有名字</span></cpn><!-- 只替换没有名字的 -->
+  </div>
+
+  <template id="cpn">
+    <div>
+      <slot name="left"><span>左边</span></slot>
+      <slot name="center"><span>中间</span></slot>
+      <slot name="right"><span>右边</span></slot>
+      <slot><span>没有名字</span></slot>
+    </div>
+  </template>
+
+  <script>
+    var app = new Vue({
+      el: '#app',
+      data: {
+        message: '你好啊'
+      },
+      methods: {},
+      components: {
+        cpn: {
+          template: '#cpn'
+        }
+      }
+    });
+  </script>
+</body>
+
+```
+
+## 4.16 编译的作用域
+
 ![alt](img/04-组件化开发/幻灯片28.jpg)
+
+```html
+
+<body>
+  <div id="app">
+    <h2>{{message}}</h2>
+    <cpn v-show="isShow"></cpn><!-- 看vue实例里面的data -->
+  </div>
+  <template id="cpn">
+    <div>
+      <p>我是p元素</p>
+      <p>我是p元素</p>
+      <p v-show="isShow">我是p元素</p><!-- 看子组件里面的data -->
+    </div>
+  </template>
+  
+
+  <!-- 
+
+1.父组件模板的所有东西都会在父级作用域内编译；子组件模板的所有东西都会在子级作用域内编译。
+2.而我们在使用<cpn v-show="isShow"></cpn>的时候，整个组件的使用过程是相当于在父组件中出现的。
+3.那么他的作用域就是父组件，使用的属性也是属于父组件的属性。
+4.因此，isShow使用的是Vue实例中的属性，而不是子组件的属性。
+
+
+   -->
+
+  <script>
+   var app = new Vue({
+      el: '#app',
+      data: {
+        message: '你好啊',
+        isShow: true
+      },
+      methods: {},
+      components:{
+        cpn:{
+          template:'#cpn',
+          data(){
+            return {
+              isShow: false
+            }
+          }
+        }
+      }
+     });
+  </script>
+</body>
+```
+
+## 4.17 作用域插槽的案例
 
 ![alt](img/04-组件化开发/幻灯片29.jpg)
 
 ![alt](img/04-组件化开发/幻灯片30.jpg)
+
+```html
+
+
+<body>
+  <div id="app">
+    <h2>{{message}}</h2>
+  </div>
+
+  <script>
+   var app = new Vue({
+      el: '#app',
+      data: {
+        message: '你好啊'
+      },
+      methods: {}
+     });
+  </script>
+</body>
+
+```
 
 
 
